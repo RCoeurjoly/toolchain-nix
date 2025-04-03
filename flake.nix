@@ -71,6 +71,8 @@
             };
           };
 
+          fpga-assembler = (builtins.getFlake "github:lromor/fpga-assembler").${system}.packages.default;
+
           # disable yosys-synlig for now: synlig is not very good and it does not compile with recent yosys
           # yosys-synlig = callPackage ./nix/yosys-synlig.nix { };
         });
@@ -80,6 +82,7 @@
         nixpkgsFor.${system}.mkShell {
           buildInputs = (with self.packages.${system}; [
             fasm
+            fpga-assembler
             prjxray
             nextpnr-xilinx
             # disabled, see above
