@@ -29,6 +29,30 @@ $ make
 $ make program
 ```
 
+Build chipdb for one device, many devices, or mixed families:
+```
+$ nix run .#build-chipdb -- xc7a100tcsg324
+```
+Examples:
+```
+$ nix run .#build-chipdb -- xc7a100tcsg324
+$ nix run .#build-chipdb -- xc7a100tcsg324 xc7k480tffg1156 xc7s50csga324
+```
+When only one footprint is requested, backend is inferred from the device prefix.
+
+For ad-hoc experiments, you can still use:
+```
+$ nix build -L --expr 'let flake = builtins.getFlake "<path-to-this-flake>"; system = "<system>"; pkgs = flake.inputs.nixpkgs.legacyPackages.${system}; in pkgs.callPackage <path-to-this-flake>/nix/nextpnr-xilinx-chipdb.nix { nixpkgs = pkgs; inherit (flake.packages.${system}) nextpnr-xilinx prjxray; chipdbFootprints = [ "xc7a100tcsg324" ]; }'
+```
+
+If this flake is consumed from another repo (for example `LLM2FPGA`), use:
+```
+openXC7Chipdb = openXC7Packages.nextpnr-xilinx-chipdb.fromFootprints {
+  chipdbFootprints = [ "xc7k480tffg1156" ];
+};
+```
+That keeps one-family, one-device, and multi-device usage on the same API path.
+
 ## How to use as a container
 ### `docker`
 To build a docker container for `x86_64-linux`, use:

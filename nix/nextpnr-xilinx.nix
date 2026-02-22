@@ -1,5 +1,9 @@
 { stdenv, cmake, git, lib, fetchFromGitHub, python312Packages, python312, eigen
 , llvmPackages, ... }:
+let
+  nextpnrRev = "refs/heads/stable-backports";
+  nextpnrVersion = "stable-backports";
+in
 stdenv.mkDerivation rec {
   pname = "nextpnr-xilinx";
   version = "0.8.2";
@@ -7,8 +11,8 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "openXC7";
     repo = "nextpnr-xilinx";
-    rev = "3374e5a62b54dc346fd5f85188ed24075ddfd5fb";
-    hash = "sha256-gW3Z3Cd5/gfX7k/ekRHtPVlbhKszWah1L+HggMFKakA=";
+    rev = nextpnrRev;
+    hash = "sha256-JnR0jLb34fBauw1MO48AUiDIGg8IbhOgRbLWykmjy4U=";
     fetchSubmodules = true;
   };
 
@@ -17,7 +21,7 @@ stdenv.mkDerivation rec {
     ++ (lib.optionals stdenv.cc.isClang [ llvmPackages.openmp ]);
 
   cmakeFlags = [
-    "-DCURRENT_GIT_VERSION=${lib.substring 0 7 src.rev}"
+    "-DCURRENT_GIT_VERSION=${nextpnrVersion}"
     "-DARCH=xilinx"
     "-DBUILD_GUI=OFF"
     "-DBUILD_TESTS=OFF"

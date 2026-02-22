@@ -35,6 +35,15 @@
 
           prjxray = callPackage ./nix/prjxray.nix { };
 
+          mkChipdb = { backend, chipdbFootprints ? null }:
+            callPackage ./nix/nextpnr-xilinx-chipdb.nix {
+              backend = backend;
+              nixpkgs = pkgs;
+              inherit nextpnr-xilinx;
+              inherit prjxray;
+              inherit chipdbFootprints;
+            };
+
           fasm = with pkgs;
             with python3Packages;
             callPackage ./nix/fasm {
@@ -45,29 +54,17 @@
             };
 
           nextpnr-xilinx-chipdb = {
-            artix7 = callPackage ./nix/nextpnr-xilinx-chipdb.nix  {
-              backend = "artix7";
-              nixpkgs = pkgs;
-              inherit nextpnr-xilinx;
-              inherit prjxray;
-            };
-            kintex7 = callPackage ./nix/nextpnr-xilinx-chipdb.nix {
-              backend = "kintex7";
-              nixpkgs = pkgs;
-              inherit nextpnr-xilinx;
-              inherit prjxray;
-            };
-            spartan7 = callPackage ./nix/nextpnr-xilinx-chipdb.nix  {
-              backend = "spartan7";
-              nixpkgs = pkgs;
-              inherit nextpnr-xilinx;
-              inherit prjxray;
-            } ;
-            zynq7 = callPackage ./nix/nextpnr-xilinx-chipdb.nix {
-              backend = "zynq7";
-              nixpkgs = pkgs;
-              inherit nextpnr-xilinx;
-              inherit prjxray;
+            artix7 = mkChipdb { backend = "artix7"; };
+            kintex7 = mkChipdb { backend = "kintex7"; };
+            spartan7 = mkChipdb { backend = "spartan7"; };
+            zynq7 = mkChipdb { backend = "zynq7"; };
+            fromFootprints = { chipdbFootprints, backend ? null }:
+              mkChipdb { inherit backend chipdbFootprints; };
+            single = {
+              "xc7k480tffg1156" = mkChipdb {
+                backend = "kintex7";
+                chipdbFootprints = [ "xc7k480tffg1156" ];
+              };
             };
           };
 
@@ -76,6 +73,55 @@
           # disable yosys-synlig for now: synlig is not very good and it does not compile with recent yosys
           # yosys-synlig = callPackage ./nix/yosys-synlig.nix { };
         });
+
+      apps = forAllSystems (system: {
+        build-chipdb = {
+          type = "app";
+          program =
+            let
+              pkgs = nixpkgsFor.${system};
+              script = pkgs.writeShellScriptBin "build-chipdb" ''
+                set -euo pipefail
+
+                if [ "$#" -eq 0 ]; then
+                  echo "usage: build-chipdb <footprint> [footprint...]" >&2
+                  exit 1
+                fi
+
+                if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+                  echo "usage: build-chipdb <footprint> [footprint...]"
+                  echo
+                  echo "Build chipdb images for one or more Xilinx 7-Series footprints."
+                  echo "Examples:"
+                  echo "  build-chipdb xc7a100tcsg324"
+                  echo "  build-chipdb xc7a100tcsg324 xc7k480tffg1156"
+                  exit 0
+                fi
+
+                footprints=""
+                for fp in "$@"; do
+                  footprints="$footprints \"$fp\""
+                done
+
+                expr_file="$(mktemp)"
+                trap 'rm -f "$expr_file"' EXIT
+
+                cat > "$expr_file" <<EOF
+let
+  flake = builtins.getFlake "${builtins.toString self}";
+  system = "${system}";
+  pkgs = flake.inputs.nixpkgs.legacyPackages.${system};
+in
+  (flake.packages.${system}.nextpnr-xilinx-chipdb.fromFootprints {
+    chipdbFootprints = [ $footprints ];
+  })
+EOF
+
+                ${pkgs.nix}/bin/nix build -L -f "$expr_file"
+              '';
+            in "${script}/bin/build-chipdb";
+        };
+      });
 
       # contains a mutually consistent set of packages for a full toolchain using nextpnr-xilinx.
       devShell = forAllSystems (system:
