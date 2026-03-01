@@ -50,7 +50,7 @@
               # NOTE(jleightcap): calling this package here is clucky.
               # contorted structure here to make the `nix/fasm` directory be
               # drop-in to upstream python-modules in nixpkgs.
-              inherit buildPythonPackage pythonOlder textx cython fetchpatch;
+              inherit buildPythonPackage pythonOlder textx cython fetchpatch jre_headless antlr4_9;
             };
 
           nextpnr-xilinx-chipdb = {
